@@ -298,6 +298,10 @@
   .fabric-manage-item .tools { display: flex; gap: 4px; }
   .saved-item .icon-btn, .fabric-manage-item .icon-btn, .sheet-head .icon-btn { border: 1px solid var(--line); }
 
+  .backup { border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .backup-note { margin: 0; color: var(--muted); font-size: 0.86rem; }
+  .backup-links { display: flex; gap: 24px; flex-wrap: wrap; }
+
   .toast {
     position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
     transform: translate(-50%, 10px); opacity: 0; z-index: 40;
@@ -524,6 +528,13 @@
     </div>
     <p class="empty" id="manageEmpty">No saved fabrics yet.</p>
     <ul class="saved-list" id="manageList"></ul>
+    <div class="backup">
+      <p class="backup-note">Move your saved fabrics and combos to another phone or computer.</p>
+      <div class="backup-links">
+        <button class="text-link js-export">Export backup</button>
+        <button class="text-link js-import">Import backup</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -538,9 +549,17 @@
     </div>
     <p class="empty" id="savedEmpty">No saved combos yet. Choose your sheet and duvet sets, then tap Save combo.</p>
     <ul class="saved-list" id="savedList"></ul>
+    <div class="backup">
+      <p class="backup-note">Move your saved fabrics and combos to another phone or computer.</p>
+      <div class="backup-links">
+        <button class="text-link js-export">Export backup</button>
+        <button class="text-link js-import">Import backup</button>
+      </div>
+    </div>
   </div>
 </div>
 
+<input type="file" id="importInput" accept="application/json,.json" class="visually-hidden" tabindex="-1">
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
   // if the 3D library can't be fetched, say so instead of loading forever
@@ -1732,6 +1751,71 @@ function renderManage() {
 }
 $('manageFabricsBtn').addEventListener('click', () => { renderManage(); openOverlay($('manageOverlay')); });
 $('manageClose').addEventListener('click', () => closeOverlay($('manageOverlay')));
+
+// ------------------------------------------------------------------
+// Backup: move saved fabrics and combos between devices
+// ------------------------------------------------------------------
+async function exportBackup() {
+  const data = {
+    app: 'bed-mixer', version: 1, exported: new Date().toISOString(),
+    fabrics, combos,
+  };
+  const name = `bed-mixer-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const file = new File([blob], name, { type: 'application/json' });
+  // phones: open the share sheet (AirDrop, Files, email…)
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Bed mixer backup' });
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+  // computers: download the file
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('Backup downloaded');
+}
+
+async function importBackup(file) {
+  let data;
+  try { data = JSON.parse(await file.text()); } catch { data = null; }
+  if (!data || data.app !== 'bed-mixer') {
+    toast('That isn’t a Bed mixer backup file.');
+    return;
+  }
+  const fabricIds = new Set(fabrics.map((f) => f.id));
+  const comboIds = new Set(combos.map((c) => c.id));
+  const newFabrics = (data.fabrics || []).filter((f) => f && !fabricIds.has(f.id));
+  const newCombos = (data.combos || []).filter((c) => c && !comboIds.has(c.id));
+  fabrics = [...newFabrics, ...fabrics];
+  combos = [...newCombos, ...combos];
+  writeStore(KEY_FABRICS, fabrics);
+  writeStore(KEY_COMBOS, combos);
+  renderPanel();
+  renderManage();
+  renderSaved();
+  updateSavedCount();
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  toast(newFabrics.length || newCombos.length
+    ? `Added ${plural(newFabrics.length, 'fabric')} and ${plural(newCombos.length, 'combo')}`
+    : 'Everything in that backup is already here');
+}
+
+document.querySelectorAll('.js-export').forEach((b) => b.addEventListener('click', exportBackup));
+document.querySelectorAll('.js-import').forEach((b) => b.addEventListener('click', () => $('importInput').click()));
+$('importInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) importBackup(file);
+});
 
 // ------------------------------------------------------------------
 // Saving combos
