@@ -218,6 +218,8 @@
   /* ---------- overlays ---------- */
   .overlay { position: fixed; inset: 0; z-index: 20; background: var(--overlay); display: none; align-items: flex-end; justify-content: center; }
   .overlay.open { display: flex; }
+  /* the edit-fabric form opens on top of the saved fabrics list */
+  #fabricOverlay { z-index: 25; }
   .sheet {
     width: 100%; max-width: 520px; max-height: 85%; background: var(--paper);
     padding: 24px 20px calc(20px + env(safe-area-inset-bottom, 0px));
