@@ -1,0 +1,1843 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bed mixer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Editorial and gallery-like: white space, black type, square corners,
+     big uppercase headings, small uppercase links with a long arrow. */
+  :root {
+    --haze: #d9d6d1;
+    --paper: #ffffff;
+    --card: #ffffff;
+    --mist: #f2f2f0;
+    --ink: #000000;
+    --ink-2: #3c3c3c;
+    --muted: #8c8c8c;
+    --line: #e6e6e6;
+    --focus: #3b5bdb;
+    --overlay: rgba(0, 0, 0, 0.22);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: light; } }
+  :root[data-theme="dark"] { color-scheme: light; }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--haze);
+    color: var(--ink);
+    font-family: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+    z-index: 10; background: var(--haze);
+  }
+  h1, h2, h3 { margin: 0; font-weight: 500; line-height: 1.05; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; -webkit-tap-highlight-color: transparent; border-radius: 0; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .visually-hidden {
+    position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
+  }
+  /* the small uppercase label-link, with a long arrow */
+  .caps { text-transform: uppercase; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.02em; }
+
+  /* ---------- layout ---------- */
+  .app { display: flex; flex-direction: column; height: 100%; }
+  .viewer { position: relative; flex: 0 0 55%; min-height: 280px; }
+  .viewer canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .viewer-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 20px; pointer-events: none;
+  }
+  .viewer-bar > * { pointer-events: auto; }
+  .brand { font-size: 1.35rem; font-weight: 500; text-transform: uppercase; letter-spacing: -0.01em; }
+  .icon-btn {
+    width: 38px; height: 38px; display: inline-grid; place-items: center; color: var(--ink);
+    background: var(--paper); border: 0;
+  }
+  .icon-btn svg { width: 17px; height: 17px; }
+  .hint {
+    position: absolute; left: 20px; bottom: 22px; text-transform: uppercase;
+    font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-2); transition: opacity 0.5s;
+  }
+  .hint.gone { opacity: 0; pointer-events: none; }
+  .loading {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    color: var(--ink-2); font-size: 0.95rem; text-align: center; padding: 24px; max-width: 38ch; margin: auto;
+  }
+
+  .panel {
+    flex: 1; min-height: 0; overflow-y: auto; background: var(--paper);
+    padding: 24px 20px 0; display: flex; flex-direction: column; gap: 28px;
+  }
+  @media (min-width: 900px) {
+    .app { flex-direction: row; }
+    .viewer { flex: 1 1 auto; min-height: 0; }
+    .panel { flex: 0 0 440px; padding: 36px 32px 0; }
+  }
+
+  /* ---------- set tabs ---------- */
+  .sets { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-bottom: 1px solid var(--line); }
+  .set-card {
+    text-align: left; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    padding: 0 0 14px; display: flex; align-items: center; gap: 12px; color: var(--muted);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .set-card[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+  .set-card .swatch-wrap { flex: 0 0 auto; }
+  .swatch { width: 34px; height: 34px; background-color: var(--mist); background-size: cover; background-position: center; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
+  .set-card[aria-selected="false"] .swatch { opacity: 0.7; }
+  .set-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .set-card .set-name { text-transform: uppercase; font-size: 0.95rem; font-weight: 500; letter-spacing: 0.01em; }
+  .set-covers { font-size: 0.74rem; line-height: 1.3; color: var(--muted); }
+
+  /* ---------- adding an image ---------- */
+  .dropzone {
+    display: none; flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px;
+    min-height: 120px; padding: 20px; text-align: left;
+    border: 1px dashed #b5b5b5; background: var(--paper); color: var(--ink-2);
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .dropzone svg { display: none; }
+  .dropzone strong { color: var(--ink); font-weight: 500; font-size: 1.05rem; }
+  .dropzone span { font-size: 0.86rem; max-width: 40ch; }
+  .dropzone kbd { font-family: inherit; font-size: 0.78rem; font-weight: 500; color: var(--ink); border: 1px solid var(--line); padding: 0 5px; }
+  .dropzone u { color: var(--ink); text-underline-offset: 3px; }
+  .dropzone:hover, .dropzone.over { border-color: var(--ink); background: #fafafa; }
+  .paste-link { align-self: flex-start; margin-top: -10px; }
+  @media (hover: hover) and (pointer: fine) {
+    .dropzone { display: flex; cursor: pointer; }
+    #uploadBtn, .paste-link { display: none; }
+  }
+  .drop-overlay { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; background: rgba(255, 255, 255, 0.9); pointer-events: none; }
+  .drop-overlay.show { display: grid; }
+  .drop-overlay div { padding: 26px 34px; border: 1px dashed var(--ink); font-size: 1.1rem; font-weight: 500; text-transform: uppercase; background: var(--paper); }
+
+  /* ---------- editor ---------- */
+  .editor { display: flex; flex-direction: column; gap: 20px; }
+  .editor > h2 { font-size: 2rem; text-transform: uppercase; letter-spacing: -0.02em; }
+  .row { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; min-height: 48px; padding: 0 16px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    text-transform: uppercase; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.03em;
+    border: 1px solid var(--ink); background: var(--paper); color: var(--ink);
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn svg { width: 15px; height: 15px; }
+  .btn:hover { background: var(--mist); }
+  .btn.primary { background: var(--ink); color: var(--paper); }
+  .btn.primary:hover { background: #262626; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field-head { display: flex; justify-content: space-between; align-items: baseline; text-transform: uppercase; font-size: 0.74rem; font-weight: 500; letter-spacing: 0.03em; }
+  .field-head output { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; background: transparent; margin: 0; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 1px; background: var(--ink); }
+  input[type="range"]::-moz-range-track { height: 1px; background: var(--ink); }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6.5px; border-radius: 0; background: var(--ink); border: 0; }
+  input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 0; background: var(--ink); border: 0; }
+
+  .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
+  .toggle small { display: block; color: var(--muted); font-size: 0.82rem; }
+  .switch { position: relative; width: 42px; height: 22px; flex: 0 0 auto; }
+  .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+  .switch span { position: absolute; inset: 0; border: 1px solid var(--ink); background: var(--paper); transition: background 0.2s; pointer-events: none; }
+  .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: var(--ink); transition: transform 0.2s, background 0.2s; }
+  .switch input:checked + span { background: var(--ink); }
+  .switch input:checked + span::after { transform: translateX(20px); background: var(--paper); }
+  .switch input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .colour-note { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 0.9rem; }
+  .dot { width: 14px; height: 14px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15); flex: 0 0 auto; }
+
+  .fabric-info { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-top: -10px; color: var(--ink-2); }
+  .text-link {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--ink); text-transform: uppercase; font-size: 0.74rem; font-weight: 500; letter-spacing: 0.03em;
+    text-decoration: none; background: none; border: 0; padding: 0;
+  }
+  .text-link::after {
+    content: ""; width: 26px; height: 7px; flex: 0 0 auto;
+    background: no-repeat center / 100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 7'%3E%3Cpath d='M0 3.5h25M22 .5l3 3-3 3' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+  }
+
+  .fabrics { display: flex; flex-direction: column; gap: 14px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .fabrics-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .fabrics-head h3 { font-size: 1.15rem; text-transform: uppercase; letter-spacing: -0.01em; }
+  .fabric-row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 3px 6px; margin: -4px -3px 0; scrollbar-width: none; }
+  .fabric-row::-webkit-scrollbar { display: none; }
+  .fabric-tile { flex: 0 0 84px; display: flex; flex-direction: column; gap: 6px; background: none; border: 0; padding: 0; text-align: left; }
+  .fabric-tile .chip { width: 84px; height: 104px; background-color: var(--mist); background-size: cover; background-position: center; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06); }
+  .fabric-tile[aria-pressed="true"] .chip { outline: 1px solid var(--ink); outline-offset: 3px; }
+  .fabric-tile span { font-size: 0.78rem; line-height: 1.25; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { color: var(--muted); margin: 0; font-size: 0.9rem; max-width: 40ch; }
+  .field-label { text-transform: uppercase; font-size: 0.74rem; font-weight: 500; letter-spacing: 0.03em; color: var(--ink-2); }
+
+  .actions { display: flex; padding: 4px 0 calc(28px + env(safe-area-inset-bottom, 0px)); }
+
+  .bar-tools { display: flex; gap: 8px; align-items: center; }
+  .bar-btn {
+    min-height: 38px; padding: 0 14px; border: 0; background: var(--paper); color: var(--ink);
+    text-transform: uppercase; font-size: 0.74rem; font-weight: 500; letter-spacing: 0.03em;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .bar-btn span:not(:empty) {
+    min-width: 18px; height: 18px; padding: 0 5px; display: inline-grid; place-items: center;
+    background: var(--ink); color: var(--paper); font-size: 0.68rem;
+  }
+
+  /* ---------- overlays ---------- */
+  .overlay { position: fixed; inset: 0; z-index: 20; background: var(--overlay); display: none; align-items: flex-end; justify-content: center; }
+  .overlay.open { display: flex; }
+  .sheet {
+    width: 100%; max-width: 520px; max-height: 85%; background: var(--paper);
+    padding: 24px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    display: flex; flex-direction: column; gap: 18px; overflow: hidden;
+  }
+  .sheet.scroll { overflow-y: auto; }
+  @media (min-width: 600px) { .overlay { align-items: center; } }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; }
+  .sheet-head h2 { font-size: 1.5rem; text-transform: uppercase; letter-spacing: -0.02em; }
+  .text-input { width: 100%; min-height: 46px; border: 0; border-bottom: 1px solid var(--ink); background: transparent; padding: 0 2px; font-size: 1rem; border-radius: 0; }
+  .text-input::placeholder { color: #b0b0b0; }
+  .text-input:focus { outline: none; border-bottom-width: 2px; }
+
+  .overlay.docked { background: transparent; pointer-events: none; }
+  .overlay.docked .sheet {
+    pointer-events: auto; position: relative; z-index: 1;
+    max-height: calc(100% - var(--scrim-top, 55%)); gap: 12px; padding-top: 18px;
+    border-top: 1px solid var(--ink);
+  }
+  /* darkens the controls behind the tray, but not the bed */
+  .scrim {
+    position: absolute; left: 0; right: 0; bottom: 0; top: var(--scrim-top, 55%);
+    background: rgba(0, 0, 0, 0.32); pointer-events: auto;
+  }
+  @media (min-width: 900px) {
+    .overlay.docked { align-items: stretch; justify-content: flex-end; }
+    .overlay.docked .sheet { max-width: 440px; max-height: none; border-top: 0; border-left: 1px solid var(--line); }
+    .scrim { display: none; }
+  }
+  .picker-top { display: flex; gap: 12px; align-items: center; }
+  .picker-top h2 { font-size: 1.15rem; text-transform: uppercase; flex: 1; }
+  .picker-preview { width: 36px; height: 36px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); flex: 0 0 auto; }
+  .hex-input { width: 100px; min-height: 36px; font-variant-numeric: tabular-nums; text-align: center; }
+  .palette { display: flex; gap: 6px; overflow-x: auto; padding: 4px 3px 6px; scrollbar-width: none; }
+  .palette::-webkit-scrollbar { display: none; }
+  .palette button { flex: 0 0 34px; height: 34px; border: 0; padding: 0; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+  .palette button[aria-pressed="true"] { outline: 1px solid var(--ink); outline-offset: 3px; }
+  .compact-field { display: grid; grid-template-columns: 86px 1fr; align-items: center; gap: 12px; }
+  .compact-field label { text-transform: uppercase; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.03em; }
+  .hue-range, .sat-range, .light-range { height: 20px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
+  .hue-range::-webkit-slider-runnable-track, .sat-range::-webkit-slider-runnable-track, .light-range::-webkit-slider-runnable-track { height: 20px; background: transparent; }
+  .hue-range::-moz-range-track, .sat-range::-moz-range-track, .light-range::-moz-range-track { height: 20px; background: transparent; }
+  .hue-range::-webkit-slider-thumb, .sat-range::-webkit-slider-thumb, .light-range::-webkit-slider-thumb { margin-top: -3px; width: 8px; height: 26px; background: #fff; border: 1px solid #000; }
+  .hue-range::-moz-range-thumb, .sat-range::-moz-range-thumb, .light-range::-moz-range-thumb { width: 6px; height: 24px; background: #fff; border: 1px solid #000; }
+  .hue-range { background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+
+  /* crop screen: same white, gallery feel */
+  .crop { position: fixed; inset: 0; z-index: 30; background: var(--paper); color: var(--ink); display: none; flex-direction: column; }
+  .crop.open { display: flex; }
+  .crop-top { padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 12px; }
+  .crop-top h2 { font-size: 1.7rem; text-transform: uppercase; letter-spacing: -0.02em; }
+  .crop-top p { margin: 8px 0 0; color: var(--ink-2); font-size: 0.9rem; max-width: 56ch; }
+  .crop-stage { position: relative; flex: 1; min-height: 0; background: #f2f2f0; }
+  .crop-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  .crop-bottom { padding: 14px 20px calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 12px; }
+  .crop-tools { display: flex; gap: 16px; align-items: center; }
+  .modes { display: flex; gap: 22px; margin-top: 14px; }
+  .modes button { border: 0; border-bottom: 2px solid transparent; background: none; padding: 0 0 6px; color: var(--muted); text-transform: uppercase; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.03em; }
+  .modes button[aria-checked="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+  .preview { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; flex: 0 0 auto; }
+  .preview canvas { width: 84px; height: 84px; background: var(--mist); display: block; }
+  .preview span { text-transform: uppercase; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.03em; color: var(--muted); }
+  .crop-sliders { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+  /* lists */
+  .saved-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; }
+  .saved-item { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); padding: 10px 0; }
+  .saved-load { flex: 1; display: flex; align-items: center; gap: 16px; text-align: left; background: none; border: 0; padding: 0; min-height: 60px; }
+  .saved-load img { width: 84px; height: 60px; object-fit: cover; background: var(--haze); flex: 0 0 auto; }
+  .saved-meta { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .saved-meta strong { font-weight: 500; text-transform: uppercase; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini-swatches { display: flex; gap: 4px; }
+  .mini-swatches span { width: 14px; height: 14px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); background-size: cover; background-position: center; }
+  .fabric-manage-item { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .fabric-manage-item .chip { width: 46px; height: 58px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); background-size: cover; background-position: center; flex: 0 0 auto; }
+  .fabric-manage-item .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .fabric-manage-item .meta strong { font-weight: 500; text-transform: uppercase; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .fabric-manage-item .tools { display: flex; gap: 4px; }
+  .saved-item .icon-btn, .fabric-manage-item .icon-btn, .sheet-head .icon-btn { border: 1px solid var(--line); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    transform: translate(-50%, 10px); opacity: 0; z-index: 40;
+    background: var(--ink); color: var(--paper); padding: 12px 16px;
+    font-size: 0.86rem; transition: opacity 0.2s, transform 0.2s; pointer-events: none;
+    max-width: calc(100% - 32px);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="app">
+  <section class="viewer" id="viewer" aria-label="3D bed preview">
+    <div class="loading" id="loading">Loading the bed…</div>
+    <div class="viewer-bar">
+      <h1 class="brand">Bed mixer</h1>
+      <div class="bar-tools">
+      <button class="bar-btn" id="savedBtn">Saved combos<span id="savedCount"></span></button>
+      </div>
+    </div>
+    <div class="hint" id="hint">Drag to turn, pinch to zoom</div>
+  </section>
+
+  <main class="panel">
+    <div class="sets" role="tablist" aria-label="Bedding sets">
+      <button class="set-card" role="tab" id="tab-duvet" data-set="duvet" aria-selected="true" aria-controls="editor">
+        <div class="swatch-wrap"><div class="swatch" id="swatch-duvet"></div></div>
+        <span class="set-text">
+          <span class="set-name">Duvet set</span>
+          <span class="set-covers">Duvet cover, top pillows</span>
+        </span>
+      </button>
+      <button class="set-card" role="tab" id="tab-sheets" data-set="sheets" aria-selected="false" aria-controls="editor">
+        <div class="swatch-wrap"><div class="swatch" id="swatch-sheets"></div></div>
+        <span class="set-text">
+          <span class="set-name">Sheet set</span>
+          <span class="set-covers">Fitted sheet, flat sheet, bottom pillows</span>
+        </span>
+      </button>
+    </div>
+
+    <section class="editor" id="editor" role="tabpanel" aria-labelledby="tab-duvet">
+      <h2 id="editorTitle">Duvet set</h2>
+      <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-describedby="dropHelp">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+        <strong>Drop or paste a product image</strong>
+        <span id="dropHelp">Copy an image from any shop and press <kbd id="pasteKey">⌘V</kbd>, or <u>choose a file</u></span>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="uploadBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+          Upload photo
+        </button>
+        <button class="btn" id="colourBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
+          Pick colour
+        </button>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" class="visually-hidden" tabindex="-1">
+      <button class="text-link paste-link" id="pasteBtn" hidden>Paste a copied image</button>
+
+      <div class="fabric-info" id="fabricInfo" hidden><strong id="fabricName"></strong><a class="text-link" id="fabricLink" target="_blank" rel="noopener noreferrer">View product</a></div>
+
+      <div class="colour-note" id="colourNote"><span class="dot" id="colourDot"></span><span id="colourText">Plain colour</span></div>
+
+      <div id="patternControls" hidden>
+        <div class="field">
+          <div class="field-head"><label for="sizeRange">Pattern size</label><output id="sizeOut" for="sizeRange">20 cm</output></div>
+          <input type="range" id="sizeRange" min="2" max="80" step="1" value="20">
+        </div>
+        <div class="field" style="margin-top: 14px;">
+          <div class="field-head"><label for="angleSet">Pattern angle</label><output id="angleSetOut" for="angleSet">0°</output></div>
+          <input type="range" id="angleSet" min="-180" max="180" step="1" value="0">
+        </div>
+        <div class="row" style="margin-top: 10px;">
+          <button class="btn" id="rotateBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            Turn 90°
+          </button>
+        </div>
+      </div>
+
+      <div class="fabrics">
+        <div class="fabrics-head">
+          <h3>Saved fabrics</h3>
+          <button class="text-link" id="manageFabricsBtn">Edit all</button>
+        </div>
+        <p class="empty" id="fabricsEmpty">Save a pattern or colour here to use it on either set.</p>
+        <div class="fabric-row" id="fabricRow" role="group" aria-label="Saved fabrics"></div>
+        <button class="btn" id="saveFabricBtn">Save this fabric</button>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button class="btn primary" id="saveBtn">Save this combo</button>
+    </div>
+  </main>
+</div>
+
+<!-- crop screen -->
+<div class="crop" id="crop" role="dialog" aria-modal="true" aria-labelledby="cropTitle">
+  <div class="crop-top">
+    <h2 id="cropTitle">Choose the pattern</h2>
+    <p id="cropHelp">Frame a few repeats of the print. Shadows and folds get evened out, and you can check the result in the preview.</p>
+    <div class="modes" role="radiogroup" aria-label="Pattern type">
+      <button role="radio" aria-checked="true" data-mode="print">Print</button>
+      <button role="radio" aria-checked="false" data-mode="stripes">Stripes</button>
+    </div>
+  </div>
+  <div class="crop-stage"><canvas id="cropCanvas"></canvas></div>
+  <div class="crop-bottom">
+    <div class="crop-tools">
+      <div class="preview">
+        <canvas id="previewCanvas" width="176" height="176" role="img" aria-label="Preview of the pattern repeating"></canvas>
+        <span>Preview</span>
+      </div>
+      <div class="crop-sliders">
+        <div class="field">
+          <div class="field-head"><label for="zoomRange">Zoom</label><output id="zoomOut" for="zoomRange">1×</output></div>
+          <input type="range" id="zoomRange" min="1" max="8" step="0.01" value="1">
+        </div>
+        <div class="field" id="flattenField">
+          <div class="field-head"><label for="flattenRange">Even out shadows</label><output id="flattenOut" for="flattenRange">70%</output></div>
+          <input type="range" id="flattenRange" min="0" max="100" step="1" value="70">
+        </div>
+        <div class="field" id="straightenField" hidden>
+          <div class="field-head"><label for="angleRange">Straighten</label><output id="angleOut" for="angleRange">0°</output></div>
+          <input type="range" id="angleRange" min="-90" max="90" step="0.5" value="0">
+        </div>
+      </div>
+    </div>
+    <label class="toggle" id="blendField">
+      <span>Blend edges<small>Fades the edges so the repeats join smoothly</small></span>
+      <span class="switch"><input type="checkbox" id="blendInput" checked><span></span></span>
+    </label>
+    <div class="row">
+      <button class="btn" id="cropCancel">Cancel</button>
+      <button class="btn" id="cropColour">Use its colour</button>
+    </div>
+    <button class="btn primary" id="cropUse">Use as pattern</button>
+  </div>
+</div>
+
+<!-- save dialog -->
+<div class="overlay" id="saveOverlay">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="saveTitle">
+    <div class="sheet-head"><h2 id="saveTitle">Save combo</h2></div>
+    <label for="nameInput" class="visually-hidden">Combo name</label>
+    <input class="text-input" id="nameInput" maxlength="40" autocomplete="off">
+    <div class="row">
+      <button class="btn" id="saveCancel">Cancel</button>
+      <button class="btn primary" id="saveConfirm">Save combo</button>
+    </div>
+  </div>
+</div>
+
+<!-- colour picker -->
+<div class="overlay docked" id="colourOverlay">
+  <div class="scrim" id="colourScrim"></div>
+  <div class="sheet scroll" role="dialog" aria-modal="false" aria-labelledby="colourTitle">
+    <div class="picker-top">
+      <div class="picker-preview" id="pickerPreview"></div>
+      <h2 id="colourTitle">Pick a colour</h2>
+      <label for="hexInput" class="visually-hidden">Colour code</label>
+      <input class="text-input hex-input" id="hexInput" maxlength="7" autocomplete="off" spellcheck="false" placeholder="#A4B494">
+    </div>
+    <div class="palette" id="palette" role="group" aria-label="Bedding colours"></div>
+    <div class="compact-field">
+      <label for="hueRange">Hue</label>
+      <input type="range" class="hue-range" id="hueRange" min="0" max="360" step="1">
+    </div>
+    <div class="compact-field">
+      <label for="satRange">Strength</label>
+      <input type="range" class="sat-range" id="satRange" min="0" max="100" step="1">
+    </div>
+    <div class="compact-field">
+      <label for="lightRange">Lightness</label>
+      <input type="range" class="light-range" id="lightRange" min="3" max="98" step="1">
+    </div>
+    <div class="row">
+      <button class="btn" id="colourCancel">Cancel</button>
+      <button class="btn primary" id="colourConfirm">Use colour</button>
+    </div>
+  </div>
+</div>
+
+<!-- save / edit a fabric -->
+<div class="overlay" id="fabricOverlay">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="fabricTitle">
+    <div class="sheet-head"><h2 id="fabricTitle">Save fabric</h2></div>
+    <label class="field">
+      <span class="field-label">Name</span>
+      <input class="text-input" id="fabricNameInput" maxlength="50" autocomplete="off" placeholder="Rowan stripe, olive">
+    </label>
+    <label class="field">
+      <span class="field-label">Product link (optional)</span>
+      <input class="text-input" id="fabricLinkInput" type="url" inputmode="url" autocomplete="off" placeholder="https://">
+    </label>
+    <div class="row">
+      <button class="btn" id="fabricCancel">Cancel</button>
+      <button class="btn primary" id="fabricConfirm">Save fabric</button>
+    </div>
+  </div>
+</div>
+
+<!-- manage fabrics -->
+<div class="overlay" id="manageOverlay">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="manageTitle">
+    <div class="sheet-head">
+      <h2 id="manageTitle">Saved fabrics</h2>
+      <button class="icon-btn" id="manageClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <p class="empty" id="manageEmpty">No saved fabrics yet.</p>
+    <ul class="saved-list" id="manageList"></ul>
+  </div>
+</div>
+
+<!-- saved list -->
+<div class="overlay" id="savedOverlay">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="savedTitle">
+    <div class="sheet-head">
+      <h2 id="savedTitle">Saved combos</h2>
+      <button class="icon-btn" id="savedClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <p class="empty" id="savedEmpty">No saved combos yet. Choose your sheet and duvet sets, then tap Save combo.</p>
+    <ul class="saved-list" id="savedList"></ul>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+  // if the 3D library can't be fetched, say so instead of loading forever
+  setTimeout(function () {
+    var l = document.getElementById('loading');
+    if (l && /^Loading/.test(l.textContent)) {
+      l.textContent = 'The bed is taking a long time to load. Check your internet connection, then refresh the page.';
+    }
+  }, 15000);
+</script>
+<div class="drop-overlay" id="dropOverlay" aria-hidden="true"><div id="dropOverlayText">Drop to add it to the duvet set</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+// ------------------------------------------------------------------
+// Which parts of the bed belong to which set (names come from bed.glb)
+// ------------------------------------------------------------------
+const SETS = {
+  sheets: { label: 'Sheet set', materials: ['fitted_sheet', 'flat_sheet', 'pillowcase_back'] },
+  duvet:  { label: 'Duvet set', materials: ['duvet_cover', 'pillowcase_front'] },
+};
+const DEFAULTS = {
+  sheets: { type: 'colour', colour: '#ece8e1', img: null, size: 20, angle: 0, soften: false, fabricId: null },
+  duvet:  { type: 'colour', colour: '#9dae96', img: null, size: 20, angle: 0, soften: false, fabricId: null },
+};
+const KEY_CURRENT = 'bedmixer.current.v1';
+const KEY_COMBOS = 'bedmixer.combos.v1';
+
+const $ = (id) => document.getElementById(id);
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+const KEY_FABRICS = 'bedmixer.fabrics.v1';
+
+// Everything is kept in this browser (IndexedDB, which has room for lots of
+// images), with a copy in memory so reads are instant.
+const store = { data: {}, db: null };
+function idbOpen() {
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open('bedmixer', 1);
+      const timer = setTimeout(() => resolve(null), 1500); // never wait forever
+      req.onupgradeneeded = () => req.result.createObjectStore('kv');
+      req.onsuccess = () => { clearTimeout(timer); resolve(req.result); };
+      req.onerror = () => { clearTimeout(timer); resolve(null); };
+      req.onblocked = () => { clearTimeout(timer); resolve(null); };
+    } catch { resolve(null); }
+  });
+}
+async function initStore() {
+  store.db = await idbOpen();
+  for (const key of [KEY_CURRENT, KEY_COMBOS, KEY_FABRICS]) {
+    let value;
+    if (store.db) {
+      value = await new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(undefined), 1500);
+        try {
+          const req = store.db.transaction('kv').objectStore('kv').get(key);
+          req.onsuccess = () => { clearTimeout(timer); resolve(req.result); };
+          req.onerror = () => { clearTimeout(timer); resolve(undefined); };
+        } catch { clearTimeout(timer); resolve(undefined); }
+      });
+    }
+    if (value === undefined) {
+      try { const v = localStorage.getItem(key); if (v) value = JSON.parse(v); } catch {}
+    }
+    if (value !== undefined) store.data[key] = value;
+  }
+}
+function readStore(key, fallback) {
+  return key in store.data ? clone(store.data[key]) : fallback;
+}
+function writeStore(key, value) {
+  store.data[key] = clone(value);
+  if (store.db) {
+    const tx = store.db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(store.data[key], key);
+    tx.onerror = () => toast('Couldn’t save to this browser. Delete some saved items and try again.');
+  } else {
+    try { localStorage.setItem(key, JSON.stringify(value)); }
+    catch { toast('Couldn’t save to this browser. Delete some saved items and try again.'); }
+  }
+  return true;
+}
+await initStore();
+
+function normaliseSet(k, s) {
+  const out = { ...DEFAULTS[k], ...(s || {}) };
+  if (out.angle === undefined) out.angle = ((out.rot || 0) % 4) * 90;
+  if (out.angle > 180) out.angle -= 360;
+  delete out.rot;
+  return out;
+}
+let state = readStore(KEY_CURRENT, null) || clone(DEFAULTS);
+for (const k of Object.keys(DEFAULTS)) state[k] = normaliseSet(k, state[k]);
+let active = 'duvet';
+let fabrics = readStore(KEY_FABRICS, []);
+
+// ------------------------------------------------------------------
+// 3D scene
+// ------------------------------------------------------------------
+const viewer = $('viewer');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NeutralToneMapping ?? THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+viewer.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 50);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enablePan = false;
+controls.minDistance = 1.6;
+controls.maxDistance = 7;
+controls.maxPolarAngle = THREE.MathUtils.degToRad(84);
+controls.target.set(0, 0.42, -0.05);
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(-2.2, 4.2, 2.6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -2.6, right: 2.6, top: 2.6, bottom: -2.6, near: 0.5, far: 14 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.02;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b2a8, 0.45));
+
+// ------------------------------------------------------------------
+// The room: off-white back wall and carpet
+// (the bed's head sits against the back wall)
+// ------------------------------------------------------------------
+// the floor and back wall run far off in every direction and fade into the
+// haze, so the room has no visible edges
+const ROOM = { x0: -25, x1: 25, z0: -1.11, z1: 25, h: 14 };
+const HAZE = new THREE.Color('#d9d6d1');
+scene.background = HAZE;
+scene.fog = new THREE.Fog(HAZE, 6, 20);
+
+function carpetTextures() {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  // soft blotches so it doesn't look like flat paint
+  const grid = 8, g = [];
+  for (let i = 0; i < grid * grid; i++) g.push(Math.random());
+  const blotch = (x, y) => {
+    const fx = (x / size) * grid, fy = (y / size) * grid;
+    const ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy;
+    const at = (a, b) => g[((b % grid) * grid) + (a % grid)];
+    const top = at(ix, iy) * (1 - tx) + at(ix + 1, iy) * tx;
+    const bot = at(ix, iy + 1) * (1 - tx) + at(ix + 1, iy + 1) * tx;
+    return top * (1 - ty) + bot * ty;
+  };
+  const bump = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const fibre = Math.random();
+    const v = 0.55 * fibre * fibre + 0.25 * blotch(x, y) + 0.2 * Math.random();
+    bump[y * size + x] = fibre;
+    const i = (y * size + x) * 4;
+    // warm mid-dark grey pile
+    img.data[i] = 62 + v * 30;
+    img.data[i + 1] = 60 + v * 30;
+    img.data[i + 2] = 57 + v * 29;
+    img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const b = document.createElement('canvas');
+  b.width = b.height = size;
+  const bctx = b.getContext('2d');
+  const bimg = bctx.createImageData(size, size);
+  for (let i = 0; i < bump.length; i++) {
+    const v = bump[i] * 255;
+    bimg.data[i * 4] = bimg.data[i * 4 + 1] = bimg.data[i * 4 + 2] = v;
+    bimg.data[i * 4 + 3] = 255;
+  }
+  bctx.putImageData(bimg, 0, 0);
+  const map = new THREE.CanvasTexture(c);
+  map.colorSpace = THREE.SRGBColorSpace;
+  const bumpMap = new THREE.CanvasTexture(b);
+  for (const t of [map, bumpMap]) {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set((ROOM.x1 - ROOM.x0) / 0.35, (ROOM.z1 - ROOM.z0) / 0.35);
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  }
+  return { map, bumpMap };
+}
+
+const roomW = ROOM.x1 - ROOM.x0, roomD = ROOM.z1 - ROOM.z0;
+const carpet = new THREE.Mesh(
+  new THREE.PlaneGeometry(roomW, roomD),
+  new THREE.MeshStandardMaterial({ ...carpetTextures(), bumpScale: 0.6, roughness: 1, envMapIntensity: 0.3 })
+);
+carpet.rotation.x = -Math.PI / 2;
+carpet.position.set((ROOM.x0 + ROOM.x1) / 2, 0, (ROOM.z0 + ROOM.z1) / 2);
+carpet.receiveShadow = true;
+scene.add(carpet);
+
+const wallMat = new THREE.MeshStandardMaterial({ color: '#f2f0ea', roughness: 0.95, envMapIntensity: 0.4 });
+const skirtMat = new THREE.MeshStandardMaterial({ color: '#f5f3ee', roughness: 0.6, envMapIntensity: 0.4 });
+const walls = [];
+function addWall(width, pos, rotY, inward) {
+  const group = new THREE.Group();
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(width, ROOM.h), wallMat);
+  wall.position.y = ROOM.h / 2;
+  wall.receiveShadow = true;
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(width, 0.09, 0.016), skirtMat);
+  skirt.position.set(0, 0.045, 0.008);
+  skirt.receiveShadow = true;
+  group.add(wall, skirt);
+  group.position.copy(pos);
+  group.rotation.y = rotY;
+  scene.add(group);
+  walls.push({ group, point: pos.clone(), inward });
+}
+addWall(roomW, new THREE.Vector3(0, 0, ROOM.z0), 0, new THREE.Vector3(0, 0, 1));
+// only the back wall is shown
+
+// hide any wall that's between the camera and the bed, like a dolls' house
+const tmpV = new THREE.Vector3();
+function updateWalls() {
+  for (const w of walls) {
+    w.group.visible = tmpV.copy(camera.position).sub(w.point).dot(w.inward) > 0;
+  }
+}
+
+
+
+const VIEW_DIR = new THREE.Vector3(-0.62, 0.5, 0.8).normalize();
+function frameBed() {
+  const r = 1.5;
+  const vFov = THREE.MathUtils.degToRad(camera.fov);
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+  const d = r / Math.sin(Math.min(vFov, hFov) / 2);
+  camera.position.copy(controls.target).addScaledVector(VIEW_DIR, d);
+  controls.update();
+}
+
+function resize() {
+  const w = viewer.clientWidth, h = viewer.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(viewer);
+resize();
+frameBed();
+
+const mats = { sheets: [], duvet: [] };
+const texCache = { sheets: { src: null, tex: null }, duvet: { src: null, tex: null } };
+
+async function getModelBuffer() {
+  const embedded = document.getElementById('bed-glb');
+  if (embedded) {
+    const bin = atob(embedded.textContent.trim());
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+  }
+  const res = await fetch('bed.glb');
+  if (!res.ok) throw new Error('missing');
+  return res.arrayBuffer();
+}
+
+getModelBuffer().then((buf) => new Promise((resolve, reject) => {
+  new GLTFLoader().parse(buf, '', resolve, reject);
+})).then((gltf) => {
+  const bed = gltf.scene;
+  bed.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = true;
+    const m = o.material;
+    m.envMapIntensity = 0.45;
+    for (const [key, set] of Object.entries(SETS)) {
+      if (set.materials.includes(m.name)) {
+        m.side = THREE.DoubleSide;
+        // matte cotton: no sheen or shiny reflections washing out the colour
+        if ('sheen' in m) m.sheen = 0;
+        if ('specularIntensity' in m) m.specularIntensity = 0;
+        m.roughness = 1;
+        if (m.normalScale) m.normalScale.multiplyScalar(0.6);
+        m.needsUpdate = true;
+        mats[key].push(m);
+      }
+    }
+  });
+  scene.add(bed);
+  $('loading').remove();
+  applySet('sheets');
+  applySet('duvet');
+}).catch(() => {
+  $('loading').textContent = 'The bed model didn’t load. Check that bed.glb is in the same folder as this page, then refresh.';
+});
+
+const hint = $('hint');
+renderer.domElement.addEventListener('pointerdown', () => hint.classList.add('gone'), { once: true });
+
+function loop() {
+  controls.update();
+  updateWalls();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ------------------------------------------------------------------
+// Applying a set's pattern or colour to the bed
+// ------------------------------------------------------------------
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function applySet(key) {
+  const s = state[key];
+  let tex = null;
+  if (s.type === 'pattern' && s.img) {
+    const cache = texCache[key];
+    if (cache.src !== s.img) {
+      const img = await loadImage(s.img);
+      if (state[key].img !== s.img) return; // changed while loading
+      cache.tex?.dispose();
+      cache.tex = new THREE.Texture(img);
+      cache.tex.colorSpace = THREE.SRGBColorSpace;
+      cache.tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      cache.src = s.img;
+    }
+    tex = cache.tex;
+    const wrap = s.soften ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping;
+    tex.wrapS = tex.wrapT = wrap;
+    const rep = 100 / s.size; // UVs are in metres, size is in cm
+    tex.repeat.set(rep, rep);
+    tex.center.set(0.5, 0.5);
+    tex.rotation = THREE.MathUtils.degToRad(s.angle);
+    tex.needsUpdate = true;
+  }
+  for (const m of mats[key]) {
+    const hadMap = !!m.map;
+    m.map = tex;
+    m.color.set(tex ? '#ffffff' : s.colour);
+    if (hadMap !== !!tex) m.needsUpdate = true;
+  }
+}
+
+// ------------------------------------------------------------------
+// Panel UI
+// ------------------------------------------------------------------
+function paintSwatch(el, s) {
+  if (s.type === 'pattern' && s.img) {
+    el.style.backgroundImage = `url("${s.img}")`;
+    el.style.backgroundColor = '';
+  } else {
+    el.style.backgroundImage = 'none';
+    el.style.backgroundColor = s.colour;
+  }
+}
+
+function renderPanel() {
+  for (const key of Object.keys(SETS)) {
+    const tab = $('tab-' + key);
+    tab.setAttribute('aria-selected', String(key === active));
+    tab.tabIndex = key === active ? 0 : -1;
+    paintSwatch($('swatch-' + key), state[key]);
+  }
+  const s = state[active];
+  $('editorTitle').textContent = SETS[active].label;
+  $('editor').setAttribute('aria-labelledby', 'tab-' + active);
+  const isPattern = s.type === 'pattern' && s.img;
+  $('patternControls').hidden = !isPattern;
+  $('colourNote').hidden = !!isPattern;
+  $('colourDot').style.background = s.colour;
+  $('colourText').textContent = `Plain colour ${s.colour.toUpperCase()}`;
+  $('sizeRange').value = s.size;
+  $('sizeOut').textContent = `${s.size} cm`;
+  $('angleSet').value = s.angle;
+  $('angleSetOut').textContent = `${s.angle}°`;
+  const fab = fabrics.find((f) => f.id === s.fabricId);
+  $('fabricInfo').hidden = !fab;
+  if (fab) {
+    $('fabricName').textContent = fab.name;
+    $('fabricLink').hidden = !fab.link;
+    if (fab.link) $('fabricLink').href = fab.link;
+  }
+  $('saveFabricBtn').textContent = fab ? 'Update saved fabric' : 'Save this fabric';
+  renderFabricRow();
+}
+
+function update(key, changes) {
+  Object.assign(state[key], changes);
+  writeStore(KEY_CURRENT, state);
+  applySet(key);
+  renderPanel();
+}
+
+document.querySelectorAll('.set-card').forEach((tab) => {
+  tab.addEventListener('click', () => { active = tab.dataset.set; renderPanel(); });
+  tab.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      active = active === 'sheets' ? 'duvet' : 'sheets';
+      renderPanel();
+      $('tab-' + active).focus();
+    }
+  });
+});
+
+// ------------------------------------------------------------------
+// Colour picker (built in, so it works the same on every phone)
+// ------------------------------------------------------------------
+const PALETTE = [
+  ['Bright white', '#f4f3ef'], ['Oat', '#e3d9c6'], ['Sand', '#cdb999'], ['Clay', '#b88a6a'], ['Rust', '#a4532f'], ['Chocolate', '#5a3a2c'],
+  ['Blush', '#e8c4be'], ['Dusty pink', '#c9958f'], ['Lilac', '#b9a7c4'], ['Plum', '#6b3f55'], ['Butter', '#eedc9a'], ['Mustard', '#c99a2e'],
+  ['Sage', '#a4b494'], ['Olive', '#8a8a3c'], ['Forest', '#3d5541'], ['Sky', '#a9c3d6'], ['Denim', '#5a7590'], ['Navy', '#263449'],
+  ['Pebble', '#bdbab3'], ['Stone', '#8f8b84'], ['Charcoal', '#45474a'], ['Black', '#1f1f21'], ['Ivory', '#efe7d6'], ['Terracotta', '#c06b4d'],
+];
+function hexToHsl(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  let h = 0, sat = 0;
+  if (max !== min) {
+    const d = max - min;
+    sat = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h *= 60;
+  }
+  return [Math.round(h), Math.round(sat * 100), Math.round(l * 100)];
+}
+function hslToHex(h, sat, l) {
+  sat /= 100; l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = sat * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return '#' + [f(0), f(8), f(4)].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+}
+const validHex = (v) => /^#?[0-9a-f]{6}$/i.test(v.trim());
+const tidyHex = (v) => ('#' + v.trim().replace('#', '')).toLowerCase();
+
+let pickerBefore = null;
+let pickerHex = '#ffffff';
+
+PALETTE.forEach(([name, hex]) => {
+  const b = document.createElement('button');
+  b.style.background = hex;
+  b.dataset.hex = hex;
+  b.setAttribute('aria-label', name);
+  b.title = name;
+  b.addEventListener('click', () => setPicker(hex, true));
+  $('palette').append(b);
+});
+
+function setPicker(hex, fromOutside) {
+  pickerHex = hex;
+  $('pickerPreview').style.background = hex;
+  if (document.activeElement !== $('hexInput')) $('hexInput').value = hex.toUpperCase();
+  const [h, sat, l] = hexToHsl(hex);
+  if (fromOutside) {
+    $('hueRange').value = h;
+    $('satRange').value = sat;
+    $('lightRange').value = l;
+  }
+  const H = $('hueRange').value, S = $('satRange').value, L = $('lightRange').value;
+  $('satRange').style.background = `linear-gradient(90deg, ${hslToHex(H, 0, L)}, ${hslToHex(H, 100, L)})`;
+  $('lightRange').style.background = `linear-gradient(90deg, #000, ${hslToHex(H, S, 50)}, #fff)`;
+  document.querySelectorAll('#palette button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.hex === hex)));
+  // show it on the bed straight away
+  state[active].type = 'colour';
+  state[active].colour = hex;
+  applySet(active);
+}
+function sliderChange() {
+  setPicker(hslToHex(Number($('hueRange').value), Number($('satRange').value), Number($('lightRange').value)), false);
+}
+['hueRange', 'satRange', 'lightRange'].forEach((id) => $(id).addEventListener('input', sliderChange));
+$('hexInput').addEventListener('input', (e) => { if (validHex(e.target.value)) setPicker(tidyHex(e.target.value), true); });
+$('hexInput').addEventListener('blur', () => { $('hexInput').value = pickerHex.toUpperCase(); });
+
+$('colourBtn').addEventListener('click', () => {
+  pickerBefore = clone(state[active]);
+  setPicker(state[active].colour, true);
+  $('colourOverlay').style.setProperty('--scrim-top', `${Math.round(viewer.getBoundingClientRect().bottom)}px`);
+  openOverlay($('colourOverlay'));
+});
+function cancelPicker() {
+  if (pickerBefore) { state[active] = pickerBefore; pickerBefore = null; applySet(active); renderPanel(); }
+  closeOverlay($('colourOverlay'));
+}
+$('colourCancel').addEventListener('click', cancelPicker);
+$('colourScrim').addEventListener('click', cancelPicker);
+$('colourConfirm').addEventListener('click', () => {
+  pickerBefore = null;
+  closeOverlay($('colourOverlay'));
+  update(active, { type: 'colour', colour: pickerHex, fabricId: null });
+});
+
+$('sizeRange').addEventListener('input', (e) => {
+  state[active].size = Number(e.target.value);
+  $('sizeOut').textContent = `${e.target.value} cm`;
+  applySet(active);
+});
+$('sizeRange').addEventListener('change', () => writeStore(KEY_CURRENT, state));
+const wrapAngle = (a) => ((((a + 180) % 360) + 360) % 360) - 180;
+$('rotateBtn').addEventListener('click', () => update(active, { angle: wrapAngle(state[active].angle + 90) }));
+$('angleSet').addEventListener('input', (e) => {
+  state[active].angle = Number(e.target.value);
+  $('angleSetOut').textContent = `${e.target.value}°`;
+  applySet(active);
+});
+$('angleSet').addEventListener('change', () => writeStore(KEY_CURRENT, state));
+
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ------------------------------------------------------------------
+// Crop screen
+// ------------------------------------------------------------------
+const cropEl = $('crop');
+const cropCanvas = $('cropCanvas');
+const cctx = cropCanvas.getContext('2d');
+const crop = { bmp: null, scale: 1, minScale: 1, ox: 0, oy: 0, angle: 0, mode: 'print', frame: { x: 0, y: 0, size: 100 } };
+const pointers = new Map();
+let pinch = null;
+
+// Every way of adding an image (file, drop, paste) ends up here
+async function openCropFrom(blob) {
+  if (!blob) return;
+  if (cropEl.classList.contains('open')) closeCrop();
+  try {
+    crop.bmp = await createImageBitmap(blob);
+  } catch {
+    toast('That image couldn’t be opened. Try a JPG, PNG or WebP image.');
+    return;
+  }
+  cropEl.classList.add('open');
+  crop.angle = 0;
+  $('angleRange').value = 0;
+  $('angleOut').textContent = '0°';
+  layoutCrop(true);
+}
+
+$('uploadBtn').addEventListener('click', () => $('fileInput').click());
+$('dropzone').addEventListener('click', () => $('fileInput').click());
+$('dropzone').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('fileInput').click(); }
+});
+$('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  openCropFrom(file);
+});
+
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+$('pasteKey').textContent = isMac ? '⌘V' : 'Ctrl+V';
+
+// paste from the clipboard (⌘V / Ctrl+V anywhere in the app)
+document.addEventListener('paste', (e) => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+  const items = [...(e.clipboardData?.items || [])];
+  const img = items.find((it) => it.kind === 'file' && it.type.startsWith('image/'));
+  if (img) {
+    e.preventDefault();
+    openCropFrom(img.getAsFile());
+    return;
+  }
+  if (items.some((it) => it.kind === 'string')) {
+    toast('That’s a link or text, not an image. Right-click the product photo, choose Copy Image, then paste.');
+  }
+});
+
+// a paste button for phones, where there's no keyboard shortcut
+if (navigator.clipboard && navigator.clipboard.read) {
+  $('pasteBtn').hidden = false;
+  $('pasteBtn').addEventListener('click', async () => {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((ty) => ty.startsWith('image/'));
+        if (type) { openCropFrom(await item.getType(type)); return; }
+      }
+      toast('There’s no image on your clipboard. Copy a product photo first, then tap Paste.');
+    } catch {
+      toast('Couldn’t read the clipboard. Copy the image again, or use Upload photo.');
+    }
+  });
+}
+
+// drag and drop an image file anywhere onto the app
+let dragDepth = 0;
+const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+window.addEventListener('dragenter', (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  dragDepth++;
+  $('dropOverlayText').textContent = `Drop to add it to the ${SETS[active].label.toLowerCase()}`;
+  $('dropOverlay').classList.add('show');
+  $('dropzone').classList.add('over');
+});
+window.addEventListener('dragover', (e) => e.preventDefault()); // stops the browser opening dropped links
+window.addEventListener('dragleave', (e) => {
+  if (!hasFiles(e)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) { $('dropOverlay').classList.remove('show'); $('dropzone').classList.remove('over'); }
+});
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  $('dropOverlay').classList.remove('show');
+  $('dropzone').classList.remove('over');
+  const file = [...(e.dataTransfer?.files || [])].find((f) => f.type.startsWith('image/'));
+  if (file) { openCropFrom(file); return; }
+  toast('Drop an image file. To use a photo from a website, right-click it, choose Copy Image, then paste.');
+});
+
+function layoutCrop(reset) {
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  const w = cropCanvas.clientWidth, h = cropCanvas.clientHeight;
+  cropCanvas.width = w * dpr;
+  cropCanvas.height = h * dpr;
+  cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const size = Math.min(w, h) * 0.82;
+  crop.frame = { x: (w - size) / 2, y: (h - size) / 2, size };
+  crop.minScale = Math.max(size / crop.bmp.width, size / crop.bmp.height);
+  if (reset) {
+    crop.scale = crop.minScale;
+    crop.ox = (w - crop.bmp.width * crop.scale) / 2;
+    crop.oy = (h - crop.bmp.height * crop.scale) / 2;
+  }
+  clampCrop();
+  drawCrop();
+}
+
+// how much bigger the square's footprint gets when the image is turned
+const coverFactor = () => Math.abs(Math.cos(crop.angle)) + Math.abs(Math.sin(crop.angle));
+const frameCentre = () => ({ x: crop.frame.x + crop.frame.size / 2, y: crop.frame.y + crop.frame.size / 2 });
+// screen point -> the un-turned image's drawing space
+function toImageSpace(p) {
+  const c = frameCentre(), a = -crop.angle;
+  const dx = p.x - c.x, dy = p.y - c.y;
+  return { x: c.x + dx * Math.cos(a) - dy * Math.sin(a), y: c.y + dx * Math.sin(a) + dy * Math.cos(a) };
+}
+function turnDelta(dx, dy) {
+  const a = -crop.angle;
+  return { x: dx * Math.cos(a) - dy * Math.sin(a), y: dx * Math.sin(a) + dy * Math.cos(a) };
+}
+
+function clampCrop() {
+  const { bmp } = crop;
+  const cover = coverFactor();
+  crop.scale = Math.min(Math.max(crop.scale, crop.minScale * cover), crop.minScale * 8);
+  const c = frameCentre();
+  const es = crop.frame.size * cover;
+  const fx = c.x - es / 2, fy = c.y - es / 2;
+  const iw = bmp.width * crop.scale, ih = bmp.height * crop.scale;
+  crop.ox = Math.min(fx, Math.max(fx + es - iw, crop.ox));
+  crop.oy = Math.min(fy, Math.max(fy + es - ih, crop.oy));
+  const z = crop.scale / crop.minScale;
+  $('zoomRange').value = z;
+  $('zoomOut').textContent = `${z.toFixed(1)}×`;
+}
+
+function drawCrop() {
+  const w = cropCanvas.clientWidth, h = cropCanvas.clientHeight;
+  const { frame, bmp } = crop;
+  cctx.clearRect(0, 0, w, h);
+  cctx.imageSmoothingQuality = 'high';
+  const c = frameCentre();
+  cctx.save();
+  cctx.translate(c.x, c.y);
+  cctx.rotate(crop.angle);
+  cctx.translate(-c.x, -c.y);
+  cctx.drawImage(bmp, crop.ox, crop.oy, bmp.width * crop.scale, bmp.height * crop.scale);
+  cctx.restore();
+  cctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+  cctx.beginPath();
+  cctx.rect(0, 0, w, h);
+  cctx.rect(frame.x, frame.y, frame.size, frame.size);
+  cctx.fill('evenodd');
+  // stitched edge around the swatch
+  cctx.setLineDash([7, 5]);
+  cctx.lineWidth = 2;
+  cctx.strokeStyle = '#000000';
+  cctx.strokeRect(frame.x + 1, frame.y + 1, frame.size - 2, frame.size - 2);
+  cctx.setLineDash([]);
+  if (crop.mode === 'stripes') {
+    // guides to line the stripes up against
+    cctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+    cctx.lineWidth = 1;
+    for (let k = 1; k < 6; k++) {
+      const x = frame.x + frame.size * k / 6;
+      cctx.beginPath();
+      cctx.moveTo(x, frame.y);
+      cctx.lineTo(x, frame.y + frame.size);
+      cctx.stroke();
+    }
+  }
+  schedulePreview();
+}
+
+function zoomAround(px, py, newScale) {
+  const old = crop.scale;
+  newScale = Math.min(Math.max(newScale, crop.minScale * coverFactor()), crop.minScale * 8);
+  crop.ox = px - (px - crop.ox) * (newScale / old);
+  crop.oy = py - (py - crop.oy) * (newScale / old);
+  crop.scale = newScale;
+}
+
+function localPoint(e) {
+  const r = cropCanvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+cropCanvas.addEventListener('pointerdown', (e) => {
+  cropCanvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, localPoint(e));
+  pinch = null;
+});
+cropCanvas.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  const cur = localPoint(e);
+  pointers.set(e.pointerId, cur);
+  if (pointers.size === 1) {
+    const d = turnDelta(cur.x - prev.x, cur.y - prev.y);
+    crop.ox += d.x;
+    crop.oy += d.y;
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    if (pinch) {
+      const d = turnDelta(mid.x - pinch.mid.x, mid.y - pinch.mid.y);
+      crop.ox += d.x;
+      crop.oy += d.y;
+      const q = toImageSpace(mid);
+      zoomAround(q.x, q.y, crop.scale * dist / pinch.dist);
+    }
+    pinch = { dist, mid };
+  }
+  clampCrop();
+  drawCrop();
+});
+const endPointer = (e) => { pointers.delete(e.pointerId); pinch = null; };
+cropCanvas.addEventListener('pointerup', endPointer);
+cropCanvas.addEventListener('pointercancel', endPointer);
+cropCanvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const p = toImageSpace(localPoint(e));
+  zoomAround(p.x, p.y, crop.scale * Math.exp(-e.deltaY * 0.0015));
+  clampCrop();
+  drawCrop();
+}, { passive: false });
+$('zoomRange').addEventListener('input', (e) => {
+  const f = crop.frame;
+  zoomAround(f.x + f.size / 2, f.y + f.size / 2, crop.minScale * Number(e.target.value));
+  clampCrop();
+  drawCrop();
+});
+window.addEventListener('resize', () => { if (cropEl.classList.contains('open')) layoutCrop(false); });
+
+$('angleRange').addEventListener('input', (e) => {
+  crop.angle = THREE.MathUtils.degToRad(Number(e.target.value));
+  $('angleOut').textContent = `${Number(e.target.value)}°`;
+  clampCrop();
+  drawCrop();
+});
+
+function setCropMode(mode) {
+  crop.mode = mode;
+  document.querySelectorAll('.modes button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
+  const stripes = mode === 'stripes';
+  $('flattenField').hidden = stripes;
+  $('blendField').hidden = stripes;
+  $('straightenField').hidden = !stripes;
+  $('cropHelp').textContent = stripes
+    ? 'Turn the image with Straighten so the stripes run straight up and down along the guides. The stripes are measured and rebuilt so every repeat lines up.'
+    : 'Frame a few repeats of the print. Shadows and folds get evened out, and you can check the result in the preview.';
+  if (crop.bmp) { clampCrop(); drawCrop(); }
+}
+document.querySelectorAll('.modes button').forEach((b) => b.addEventListener('click', () => setCropMode(b.dataset.mode)));
+
+function cropToCanvas(px) {
+  const { frame, bmp } = crop;
+  const out = document.createElement('canvas');
+  out.width = out.height = px;
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  const c = frameCentre();
+  ctx.translate(px / 2, px / 2);
+  ctx.scale(px / frame.size, px / frame.size);
+  ctx.rotate(crop.angle);
+  ctx.translate(-c.x, -c.y);
+  ctx.drawImage(bmp, crop.ox, crop.oy, bmp.width * crop.scale, bmp.height * crop.scale);
+  return out;
+}
+
+const lum = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+
+// Removes large-scale light and shadow (folds, creases, vignetting)
+// while keeping the smaller detail of the print.
+function evenOutShadows(canvas, amount) {
+  if (amount <= 0) return;
+  const n = canvas.width;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const img = ctx.getImageData(0, 0, n, n);
+  const d = img.data;
+  // shrink in steps to a tiny grid, then stretch back: a smooth light map
+  let cur = canvas, size = n;
+  while (size > 32) {
+    size = Math.max(8, Math.round(size / 3));
+    const t = document.createElement('canvas');
+    t.width = t.height = size;
+    const tc = t.getContext('2d');
+    tc.imageSmoothingQuality = 'high';
+    tc.drawImage(cur, 0, 0, size, size);
+    cur = t;
+  }
+  const tiny = document.createElement('canvas');
+  tiny.width = tiny.height = 8;
+  tiny.getContext('2d').drawImage(cur, 0, 0, 8, 8);
+  const big = document.createElement('canvas');
+  big.width = big.height = n;
+  const bc = big.getContext('2d', { willReadFrequently: true });
+  bc.imageSmoothingQuality = 'high';
+  bc.drawImage(tiny, 0, 0, n, n);
+  const L = bc.getImageData(0, 0, n, n).data;
+  let mean = 0;
+  for (let i = 0; i < d.length; i += 4) mean += lum(d, i);
+  mean /= d.length / 4;
+  for (let i = 0; i < d.length; i += 4) {
+    const gain = 1 + (mean / Math.max(lum(L, i), 6) - 1) * amount;
+    d[i] = Math.min(255, d[i] * gain);
+    d[i + 1] = Math.min(255, d[i + 1] * gain);
+    d[i + 2] = Math.min(255, d[i + 2] * gain);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// Makes the square tile seamlessly by blending each edge with the
+// opposite side of the image (first left/right, then top/bottom).
+function blendEdges(canvas) {
+  const n = canvas.width, h = Math.floor(n / 2), band = n * 0.22;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const weight = (p) => {
+    const t = Math.min(1, Math.min(p, n - 1 - p) / band);
+    return t * t * (3 - 2 * t);
+  };
+  for (const axis of ['x', 'y']) {
+    const src = ctx.getImageData(0, 0, n, n).data;
+    const out = ctx.createImageData(n, n);
+    const o = out.data;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = (y * n + x) * 4;
+        const sx = axis === 'x' ? (x + h) % n : x;
+        const sy = axis === 'y' ? (y + h) % n : y;
+        const j = (sy * n + sx) * 4;
+        const w = weight(axis === 'x' ? x : y);
+        o[i] = src[i] * w + src[j] * (1 - w);
+        o[i + 1] = src[i + 1] * w + src[j + 1] * (1 - w);
+        o[i + 2] = src[i + 2] * w + src[j + 2] * (1 - w);
+        o[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+  }
+}
+
+// Stripes: average the square along the stripes to get one clean line of
+// colour, measure how often it repeats, then rebuild exactly one repeat.
+function rebuildStripes(px) {
+  const N = 360;
+  const c = cropToCanvas(N);
+  const d = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, N, N).data;
+  const cols = Array.from({ length: N }, () => [0, 0, 0]);
+  const rows = Array.from({ length: N }, () => [0, 0, 0]);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = (y * N + x) * 4;
+    for (let k = 0; k < 3; k++) { cols[x][k] += d[i + k] / N; rows[y][k] += d[i + k] / N; }
+  }
+  const lumOf = (p) => 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
+  const variance = (arr) => {
+    const l = arr.map(lumOf), m = l.reduce((a, b) => a + b, 0) / l.length;
+    return l.reduce((a, b) => a + (b - m) ** 2, 0) / l.length;
+  };
+  const vertical = variance(cols) >= variance(rows); // stripes run up and down
+  const prof = vertical ? cols : rows;
+
+  // even out slow light changes along the profile
+  const L = prof.map(lumOf);
+  const win = Math.round(N / 4);
+  const trend = L.map((_, i) => {
+    let sum = 0, n = 0;
+    for (let j = Math.max(0, i - win); j <= Math.min(N - 1, i + win); j++) { sum += L[j]; n++; }
+    return sum / n;
+  });
+  const meanL = L.reduce((a, b) => a + b, 0) / N;
+  const flat = prof.map((p, i) => p.map((v) => v * meanL / Math.max(trend[i], 6)));
+  const FL = flat.map(lumOf);
+  const m = FL.reduce((a, b) => a + b, 0) / N;
+  const dev = FL.map((v) => v - m);
+  const varL = dev.reduce((a, b) => a + b * b, 0) / N;
+  if (varL < 4) return null; // basically plain
+
+  // how far apart the repeats are (autocorrelation)
+  const maxLag = Math.floor(N * 0.6);
+  const ac = [1];
+  for (let lag = 1; lag <= maxLag; lag++) {
+    let sum = 0;
+    for (let i = 0; i + lag < N; i++) sum += dev[i] * dev[i + lag];
+    ac.push(sum / ((N - lag) * varL));
+  }
+  const peaks = [];
+  for (let lag = 3; lag < maxLag; lag++) {
+    if (ac[lag] > ac[lag - 1] && ac[lag] >= ac[lag + 1] && ac[lag] > 0.2) peaks.push(lag);
+  }
+  if (!peaks.length) return null;
+  const best = Math.max(...peaks.map((l) => ac[l]));
+  const lag = peaks.find((l) => ac[l] >= best * 0.85);
+  const a0 = ac[lag - 1], a1 = ac[lag], a2 = ac[lag + 1];
+  const period = lag + 0.5 * (a0 - a2) / (a0 - 2 * a1 + a2 || 1);
+
+  // fold every repeat on top of each other to get one clean repeat
+  const B = 160;
+  const bins = Array.from({ length: B }, () => [0, 0, 0, 0]);
+  for (let i = 0; i < N; i++) {
+    const ph = ((i % period) / period) * B;
+    const b0 = Math.floor(ph) % B, b1 = (b0 + 1) % B, f = ph - Math.floor(ph);
+    for (let k = 0; k < 3; k++) { bins[b0][k] += flat[i][k] * (1 - f); bins[b1][k] += flat[i][k] * f; }
+    bins[b0][3] += 1 - f;
+    bins[b1][3] += f;
+  }
+  const line = bins.map((b) => b[3] > 0 ? b.slice(0, 3).map((v) => v / b[3]) : null);
+  for (let i = 0; i < B; i++) if (!line[i]) line[i] = line[(i + B - 1) % B] || line[(i + 1) % B] || [128, 128, 128];
+
+  // draw exactly one repeat into a square tile
+  const out = document.createElement('canvas');
+  out.width = out.height = px;
+  const octx = out.getContext('2d');
+  const img = octx.createImageData(px, px);
+  for (let t = 0; t < px; t++) {
+    const ph = (t / px) * B;
+    const b0 = Math.floor(ph) % B, b1 = (b0 + 1) % B, f = ph - Math.floor(ph);
+    const col = [0, 1, 2].map((k) => Math.min(255, line[b0][k] * (1 - f) + line[b1][k] * f));
+    for (let u = 0; u < px; u++) {
+      const x = vertical ? t : u, y = vertical ? u : t;
+      const i = (y * px + x) * 4;
+      img.data[i] = col[0]; img.data[i + 1] = col[1]; img.data[i + 2] = col[2]; img.data[i + 3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  return out;
+}
+
+function processedCrop(px) {
+  if (crop.mode === 'stripes') return rebuildStripes(px);
+  const c = cropToCanvas(px);
+  evenOutShadows(c, Number($('flattenRange').value) / 100);
+  if ($('blendInput').checked) blendEdges(c);
+  return c;
+}
+
+// The fabric's colour: ignores the darkest shadows and brightest highlights
+function fabricColour() {
+  const c = cropToCanvas(32);
+  const d = c.getContext('2d').getImageData(0, 0, 32, 32).data;
+  const px = [];
+  for (let i = 0; i < d.length; i += 4) px.push([lum(d, i), d[i], d[i + 1], d[i + 2]]);
+  px.sort((a, b) => a[0] - b[0]);
+  const part = px.slice(Math.floor(px.length * 0.4), Math.floor(px.length * 0.9));
+  const avg = [1, 2, 3].map((k) => part.reduce((sum, p) => sum + p[k], 0) / part.length);
+  return '#' + avg.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+}
+
+const previewCanvas = $('previewCanvas');
+const pctx = previewCanvas.getContext('2d');
+let previewQueued = false;
+function schedulePreview() {
+  if (previewQueued || !crop.bmp) return;
+  previewQueued = true;
+  requestAnimationFrame(() => {
+    previewQueued = false;
+    if (!crop.bmp) return;
+    const tile = processedCrop(96);
+    const s = previewCanvas.width / 2;
+    if (!tile) {
+      pctx.fillStyle = '#f2f2f0';
+      pctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+      pctx.fillStyle = '#8c8c8c';
+      pctx.font = '500 18px "Instrument Sans", sans-serif';
+      pctx.textAlign = 'center';
+      pctx.fillText('No stripes', s, s - 6);
+      pctx.fillText('found', s, s + 20);
+      return;
+    }
+    for (let ty = 0; ty < 2; ty++) for (let tx = 0; tx < 2; tx++) {
+      pctx.drawImage(tile, tx * s, ty * s, s, s);
+    }
+  });
+}
+
+$('flattenRange').addEventListener('input', (e) => {
+  $('flattenOut').textContent = `${e.target.value}%`;
+  schedulePreview();
+});
+$('blendInput').addEventListener('change', schedulePreview);
+
+function closeCrop() {
+  cropEl.classList.remove('open');
+  crop.bmp?.close?.();
+  crop.bmp = null;
+  pointers.clear();
+}
+
+$('cropCancel').addEventListener('click', closeCrop);
+$('cropUse').addEventListener('click', () => {
+  const tile = processedCrop(768);
+  if (!tile) {
+    toast('No repeating stripes found. Straighten the stripes along the guides, or zoom out so a few repeats fit in the square.');
+    return;
+  }
+  const dataUrl = tile.toDataURL('image/jpeg', 0.9);
+  closeCrop();
+  update(active, { type: 'pattern', img: dataUrl, angle: 0, fabricId: null });
+  toast(`Pattern added to the ${SETS[active].label.toLowerCase()}`);
+});
+$('cropColour').addEventListener('click', () => {
+  const hex = fabricColour();
+  closeCrop();
+  update(active, { type: 'colour', colour: hex, fabricId: null });
+  toast(`Colour added to the ${SETS[active].label.toLowerCase()}`);
+});
+
+// ------------------------------------------------------------------
+// Saved fabrics — reusable on either set
+// ------------------------------------------------------------------
+function cleanLink(v) {
+  v = (v || '').trim();
+  if (!v) return '';
+  if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+  try { return new URL(v).href; } catch { return ''; }
+}
+const fabricLook = (s) => ({ type: s.type, colour: s.colour, img: s.img, size: s.size, angle: s.angle });
+
+function renderFabricRow() {
+  const row = $('fabricRow');
+  row.innerHTML = '';
+  $('fabricsEmpty').hidden = fabrics.length > 0;
+  $('manageFabricsBtn').hidden = fabrics.length === 0;
+  for (const f of fabrics) {
+    const b = document.createElement('button');
+    b.className = 'fabric-tile';
+    b.setAttribute('aria-pressed', String(state[active].fabricId === f.id));
+    b.setAttribute('aria-label', `Use ${f.name} on the ${SETS[active].label.toLowerCase()}`);
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    paintSwatch(chip, f);
+    const name = document.createElement('span');
+    name.textContent = f.name;
+    b.append(chip, name);
+    b.addEventListener('click', () => {
+      update(active, { ...fabricLook(f), fabricId: f.id });
+      toast(`${f.name} added to the ${SETS[active].label.toLowerCase()}`);
+    });
+    row.append(b);
+  }
+}
+
+let editingFabricId = null;
+function openFabricForm(fab) {
+  editingFabricId = fab ? fab.id : null;
+  $('fabricTitle').textContent = fab ? 'Edit fabric' : 'Save fabric';
+  $('fabricConfirm').textContent = 'Save fabric';
+  $('fabricNameInput').value = fab ? fab.name : '';
+  $('fabricLinkInput').value = fab ? fab.link : '';
+  openOverlay($('fabricOverlay'));
+  setTimeout(() => $('fabricNameInput').focus(), 50);
+}
+
+$('saveFabricBtn').addEventListener('click', () => {
+  const s = state[active];
+  const existing = fabrics.find((f) => f.id === s.fabricId);
+  if (existing) {
+    // keep the name and link, store the current size and angle
+    Object.assign(existing, fabricLook(s));
+    writeStore(KEY_FABRICS, fabrics);
+    renderPanel();
+    toast(`Updated “${existing.name}”`);
+    return;
+  }
+  openFabricForm(null);
+});
+$('fabricCancel').addEventListener('click', () => closeOverlay($('fabricOverlay')));
+$('fabricNameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('fabricLinkInput').focus(); });
+$('fabricLinkInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('fabricConfirm').click(); });
+$('fabricConfirm').addEventListener('click', () => {
+  const name = $('fabricNameInput').value.trim();
+  if (!name) { $('fabricNameInput').focus(); toast('Give the fabric a name to save it.'); return; }
+  const link = cleanLink($('fabricLinkInput').value);
+  if ($('fabricLinkInput').value.trim() && !link) { toast('That link doesn’t look right. Paste the full web address.'); return; }
+  if (editingFabricId) {
+    const f = fabrics.find((x) => x.id === editingFabricId);
+    if (f) { f.name = name; f.link = link; }
+  } else {
+    const f = { id: Date.now(), name, link, ...fabricLook(state[active]) };
+    fabrics.unshift(f);
+    state[active].fabricId = f.id;
+    writeStore(KEY_CURRENT, state);
+  }
+  writeStore(KEY_FABRICS, fabrics);
+  closeOverlay($('fabricOverlay'));
+  renderPanel();
+  renderManage();
+  toast(`Saved “${name}”`);
+});
+
+function renderManage() {
+  const list = $('manageList');
+  list.innerHTML = '';
+  $('manageEmpty').hidden = fabrics.length > 0;
+  for (const f of fabrics) {
+    const li = document.createElement('li');
+    li.className = 'fabric-manage-item';
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    paintSwatch(chip, f);
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const strong = document.createElement('strong');
+    strong.textContent = f.name;
+    meta.append(strong);
+    if (f.link) {
+      const a = document.createElement('a');
+      a.className = 'text-link';
+      a.href = f.link;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = 'View product';
+      meta.append(a);
+    }
+    const tools = document.createElement('div');
+    tools.className = 'tools';
+    const edit = document.createElement('button');
+    edit.className = 'icon-btn';
+    edit.setAttribute('aria-label', `Edit ${f.name}`);
+    edit.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m14 6 4 4"/></svg>';
+    edit.addEventListener('click', () => openFabricForm(f));
+    const del = document.createElement('button');
+    del.className = 'icon-btn';
+    del.setAttribute('aria-label', `Delete ${f.name}`);
+    del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+    del.addEventListener('click', () => {
+      if (!confirm(`Delete “${f.name}”? It stays on the bed until you change it.`)) return;
+      fabrics = fabrics.filter((x) => x.id !== f.id);
+      for (const k of Object.keys(SETS)) if (state[k].fabricId === f.id) state[k].fabricId = null;
+      writeStore(KEY_FABRICS, fabrics);
+      writeStore(KEY_CURRENT, state);
+      renderManage();
+      renderPanel();
+      toast(`Deleted “${f.name}”`);
+    });
+    tools.append(edit, del);
+    li.append(chip, meta, tools);
+    list.append(li);
+  }
+}
+$('manageFabricsBtn').addEventListener('click', () => { renderManage(); openOverlay($('manageOverlay')); });
+$('manageClose').addEventListener('click', () => closeOverlay($('manageOverlay')));
+
+// ------------------------------------------------------------------
+// Saving combos
+// ------------------------------------------------------------------
+let combos = readStore(KEY_COMBOS, []);
+
+function openOverlay(el) { el.classList.add('open'); }
+function closeOverlay(el) { el.classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach((o) => {
+  o.addEventListener('click', (e) => {
+    if (e.target !== o) return;
+    if (o.id === 'colourOverlay') cancelPicker(); else closeOverlay(o);
+  });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (cropEl.classList.contains('open')) closeCrop();
+  if ($('colourOverlay').classList.contains('open')) cancelPicker();
+  document.querySelectorAll('.overlay.open').forEach(closeOverlay);
+});
+
+$('saveBtn').addEventListener('click', () => {
+  $('nameInput').value = `Combo ${combos.length + 1}`;
+  openOverlay($('saveOverlay'));
+  setTimeout(() => { $('nameInput').focus(); $('nameInput').select(); }, 50);
+});
+$('saveCancel').addEventListener('click', () => closeOverlay($('saveOverlay')));
+$('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('saveConfirm').click(); });
+
+function snapshot() {
+  renderer.render(scene, camera);
+  const src = renderer.domElement;
+  const out = document.createElement('canvas');
+  const w = 240, h = Math.round(240 * src.height / src.width);
+  out.width = w; out.height = h;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(src, 0, 0, w, h);
+  return out.toDataURL('image/jpeg', 0.75);
+}
+
+$('saveConfirm').addEventListener('click', () => {
+  const name = $('nameInput').value.trim() || `Combo ${combos.length + 1}`;
+  const combo = { id: Date.now(), name, state: clone(state), thumb: snapshot() };
+  combos.unshift(combo);
+  writeStore(KEY_COMBOS, combos);
+  updateSavedCount();
+  closeOverlay($('saveOverlay'));
+  toast(`Saved “${name}”`);
+});
+
+function updateSavedCount() {
+  $('savedCount').textContent = combos.length ? String(combos.length) : '';
+}
+
+function renderSaved() {
+  const list = $('savedList');
+  list.innerHTML = '';
+  $('savedEmpty').hidden = combos.length > 0;
+  for (const c of combos) {
+    const li = document.createElement('li');
+    li.className = 'saved-item';
+    const load = document.createElement('button');
+    load.className = 'saved-load';
+    const img = document.createElement('img');
+    img.src = c.thumb;
+    img.alt = '';
+    const meta = document.createElement('span');
+    meta.className = 'saved-meta';
+    const strong = document.createElement('strong');
+    strong.textContent = c.name;
+    const minis = document.createElement('span');
+    minis.className = 'mini-swatches';
+    for (const key of Object.keys(SETS)) {
+      const sw = document.createElement('span');
+      paintSwatch(sw, c.state[key]);
+      minis.append(sw);
+    }
+    meta.append(strong, minis);
+    load.append(img, meta);
+    load.setAttribute('aria-label', `Load ${c.name}`);
+    load.addEventListener('click', () => {
+      state = clone(c.state);
+      for (const k of Object.keys(DEFAULTS)) state[k] = normaliseSet(k, state[k]);
+      writeStore(KEY_CURRENT, state);
+      applySet('sheets');
+      applySet('duvet');
+      renderPanel();
+      closeOverlay($('savedOverlay'));
+      toast(`Loaded “${c.name}”`);
+    });
+    const del = document.createElement('button');
+    del.className = 'icon-btn';
+    del.setAttribute('aria-label', `Delete ${c.name}`);
+    del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+    del.addEventListener('click', () => {
+      if (!confirm(`Delete “${c.name}”?`)) return;
+      combos = combos.filter((x) => x.id !== c.id);
+      writeStore(KEY_COMBOS, combos);
+      updateSavedCount();
+      renderSaved();
+      toast(`Deleted “${c.name}”`);
+    });
+    li.append(load, del);
+    list.append(li);
+  }
+}
+
+$('savedBtn').addEventListener('click', () => { renderSaved(); openOverlay($('savedOverlay')); });
+$('savedClose').addEventListener('click', () => closeOverlay($('savedOverlay')));
+
+renderPanel();
+updateSavedCount();
+</script>
+</body>
+</html>
