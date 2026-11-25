@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#d9d6d1">
 <title>Bed mixer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,12 +32,11 @@
   :root {
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   html { scroll-padding-top: env(safe-area-inset-top, 0px); }
   html, body { height: 100%; margin: 0; }
   body {
-    background: var(--haze);
+    background: var(--paper); /* white under the panel, right to the bottom edge */
     color: var(--ink);
     font-family: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     font-size: 15px;
@@ -61,6 +61,11 @@
 
   /* ---------- layout ---------- */
   .app { display: flex; flex-direction: column; height: 100%; }
+  /* fill the real visible screen on phones, whatever the browser bars are doing */
+  @supports (height: 100dvh) {
+    html, body { height: 100dvh; }
+    .app { height: calc(100dvh - env(safe-area-inset-top, 0px)); }
+  }
   .viewer { position: relative; flex: 0 0 55%; min-height: 280px; }
   .viewer canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   .viewer-bar {
